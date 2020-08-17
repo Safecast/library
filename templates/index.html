@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Safecast</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+    crossorigin=""/>
+    <link 
+    rel="stylesheet" 
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+    crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    </script>
+</head>
+
+<body>
+    <div id='mainmap' style="width: 100vw; height: 100vh; position: absolute;"></div>
+</body>
+
+<script type="text/javascript">
+initMap = (maps) => {
+    L.Map.addInitHook(function () {
+        maps.push(this);
+    });
+
+    let mainmap = L
+        .map("mainmap")
+        .setView([34.0522, -118.2437], 12);
+
+    L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }
+    ).addTo(mainmap);
+
+    var dataLayer = new L.LayerGroup();
+    mainmap.addLayer(dataLayer);
+
+    var drawnItems = new L.FeatureGroup();
+    mainmap.addLayer(drawnItems);
+
+    var drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        }
+    });
+    mainmap.addControl(drawControl);
+
+    mainmap.on('draw:created', (e) => {addBound(e, dataLayer, drawnItems)});
+    mainmap.on('draw:deleted', (e) => {deleteFilter(e, dataLayer, drawnItems)})
+    return [dataLayer, drawnItems];
+}
+
+loadMap = (data, dataLayer, drawnItems) => {
+    data = JSON.parse(data); 
+    console.log(data)
+    if (data[0] == 'raw') {
+        plot(data[1], dataLayer);
+
+    } else if (data[0] == 'filtered') {
+        let bound = data[2].map(point => [point['lat'], point['lng']]);
+        console.log(bound);
+        L.polygon(bound).addTo(drawnItems);
+        plot(data[1], dataLayer);
+    }
+};
+
+plot = (data, layer) => {
+    for (let feature of data) {
+        L.circleMarker(
+            [feature['latitude'], feature['longitude']]
+        ).addTo(layer)
+    }
+}
+
+addBound = (e, dataLayer, drawnItems) => {
+    drawnItems.addLayer(e.layer)
+    $.ajax({
+        url: "/data",
+        type: "post",
+        data: JSON.stringify(e.layer.getLatLngs()),
+        contentType: 'application/json',
+        success: function(data) {
+            dataLayer.clearLayers();
+            loadMap(data, dataLayer, drawnItems)
+        },
+        error: function(xhr) {
+        }
+    });
+}
+
+deleteFilter = (e, dataLayer, drawnItems) => {
+    $.ajax({
+        url: "/data",
+        type: "get",
+        success: function(data) {
+            drawnItems.clearLayers();
+            dataLayer.clearLayers();
+            loadMap(data, dataLayer, drawnItems);
+        },
+        error: function(xhr) {
+        }
+    })
+}
+
+// try to refactor everything above into a separate file >:(
+var maps = [];
+var [dataLayer, drawnItems] = initMap(maps);
+loadMap('{{ data | tojson }}', dataLayer, drawnItems);
+
+</script>
+</html>
