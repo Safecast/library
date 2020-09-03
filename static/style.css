@@ -1,0 +1,8 @@
+body {
+    font-family: 'Segoe UI';
+    margin: 0;
+    padding: 0;
+}
+
+#mainmap {width: 70vw; height: 100vh; position: absolute;}
+#sidebar {width: 30vw; height: 100vh; left: 70vw; position: absolute; padding: 5px}
