@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for
-from elasticsearch import Elasticsearch
-import json
-import pandas as pd
 import configparser
+import os
 from datetime import date
+
+from elasticsearch import Elasticsearch
+from flask import Flask, render_template, request
+
 from wrangle import wrangle
 
 app = Flask(__name__)
@@ -12,7 +13,11 @@ wrangle = wrangle()
 def get_data():
     config = configparser.ConfigParser()
     config.read('config.ini')
-    es = Elasticsearch('https://{}:{}@40ad140d461d810ac41ed710b5c7a5b6.us-west-2.aws.found.io:9243/'.format(config['ELASTICSEARCH']['Username'], config['ELASTICSEARCH']['Password']))
+
+    host = os.environ.get('ELASTICSEARCH_HOST')
+    if host is None:
+        host = 'https://{}:{}@40ad140d461d810ac41ed710b5c7a5b6.us-west-2.aws.found.io:9243/'.format(config['ELASTICSEARCH']['Username'], config['ELASTICSEARCH']['Password'])
+    es = Elasticsearch(host)
 
     # query
     today = date.today()
