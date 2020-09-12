@@ -1,0 +1,32 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build and publish artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set container details
+        run: |
+          echo "::set-env name=REGISTRY::docker.pkg.github.com"
+          REPOSITORY_BASE=$(echo "${{ github.repository }}" | perl -ne 'print lc')
+          echo "::set-env name=REPOSITORY_BASE::${REPOSITORY_BASE}"
+          echo "::set-env name=TAG::sha-$(git rev-parse --short=7 HEAD)"
+      - name: Build containers
+        run: |
+          docker build -t "${REGISTRY}/${REPOSITORY_BASE}/library:${TAG}" .
+      - name: Check if secrets are available for publishing
+        run: echo "::set-env name=SECRETS_AVAILABLE::${{ secrets.AWS_ACCESS_KEY_ID }}"
+      - name: Push containers
+        if: env.SECRETS_AVAILABLE
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login "${REGISTRY}" -u ${{ github.actor }} --password-stdin
+          docker push "${REGISTRY}/${REPOSITORY_BASE}/library:${TAG}"
