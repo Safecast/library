@@ -24,7 +24,7 @@ jobs:
         run: |
           docker build -t "${REGISTRY}/${REPOSITORY_BASE}/library:${TAG}" .
       - name: Check if secrets are available for publishing
-        run: echo "::set-env name=SECRETS_AVAILABLE::${{ secrets.AWS_ACCESS_KEY_ID }}"
+        run: echo "::set-env name=SECRETS_AVAILABLE::${{ secrets.GITHUB_TOKEN }}"
       - name: Push containers
         if: env.SECRETS_AVAILABLE
         run: |
