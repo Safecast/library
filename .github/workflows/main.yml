@@ -30,3 +30,8 @@ jobs:
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login "${REGISTRY}" -u ${{ github.actor }} --password-stdin
           docker push "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}"
+      - name: Push latest containers
+        if: env.SECRETS_AVAILABLE && github.ref == 'refs/heads/master'
+        run: |
+          docker tag "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}" "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
+          docker push "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
