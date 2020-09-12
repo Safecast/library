@@ -1,0 +1,10 @@
+body {margin: 0; padding: 0; font-family: 'Segoe UI';}
+select {font-family: 'Segoe UI';}
+input[type='text'] {font-family: 'Segoe UI'; border: none; border-bottom: 1px solid #aaaaaa !important;}
+a, a:hover {color: white;}
+#header {width: 100vw; height: 15vh; position: relative; padding: 5px; box-sizing: border-box; overflow-y: scroll;}
+#epa {width: 200px;height: calc(15vh - 10px);position: absolute;left: calc(100vw - 220px);z-index: 999;background: rgb(7, 153, 146); font-size: 14px;color: white;padding: 5px;box-sizing: border-box;}
+#info {width: 250px;height: 80px;position: absolute;left: calc(50vw - 250px);z-index: 999;background: rgba(255, 255, 255, 0.7);border: 1px solid grey; visibility: hidden;}
+#mainmap {width: 50vw; height: 85vh; position: absolute;}
+#legend {width: 150px; height: 150px; position: absolute; left: 0; top: calc(85vh - 150px); z-index: 1000; background: rgba(255, 255, 255, 0.7); padding: 5px; box-sizing: border-box;}
+#sidebar {width: 50vw; height: 85vh; top: 15vh; left: 50vw; padding: 5px; box-sizing: border-box; cursor: crosshair; position: absolute;}
