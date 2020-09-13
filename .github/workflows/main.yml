@@ -23,15 +23,13 @@ jobs:
       - name: Build containers
         run: |
           docker build -t "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}" .
-      - name: Check if secrets are available for publishing
-        run: echo "::set-env name=SECRETS_AVAILABLE::${{ secrets.GITHUB_TOKEN }}"
-      - name: Push containers
-        if: env.SECRETS_AVAILABLE
+      - name: Push containers (except on PRs from forks)
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login "${REGISTRY}" -u ${{ github.actor }} --password-stdin
           docker push "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}"
-      - name: Push latest containers
-        if: env.SECRETS_AVAILABLE && github.ref == 'refs/heads/master'
+      - name: Push latest containers (only on main)
+        if: ${{ github.event_name == 'push' && github.event.ref == 'refs/heads/master' }}
         run: |
           docker tag "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}" "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
           docker push "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
