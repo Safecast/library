@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for
-from elasticsearch import Elasticsearch
-import json
-import pandas as pd
 import configparser
+import os
 from datetime import date, timedelta
+
+from elasticsearch import Elasticsearch
+from flask import Flask, render_template, request
+
 from wrangle import wrangle
 
 app = Flask(__name__)
