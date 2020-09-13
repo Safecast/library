@@ -9,7 +9,7 @@
     rel="stylesheet" 
     href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
     />
-    <link href="{{ url_for('static',filename='style.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('static',filename='stylesheet.css') }}" rel="stylesheet" />
     <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
     integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
     crossorigin=""></script>
@@ -19,233 +19,64 @@
     <script src="https://d3js.org/d3-color.v2.min.js"></script>
     <script src="https://d3js.org/d3-interpolate.v2.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v2.min.js"></script>
+    <script src="{{ url_for('static',filename='map.js') }}"></script>
     </script>
 
+    <!--
     <style>
         body {margin: 0; padding: 0; font-family: 'Segoe UI';}
         select {font-family: 'Segoe UI';}
         input[type='text'] {font-family: 'Segoe UI'; border: none; border-bottom: 1px solid #aaaaaa !important;}
-    </style>
+        a, ah {color: white;}
+    </style>-->
 </head>
 
 <body>
-    <div id="header" style="width: 100vw; height: 15vh; position: absolute; padding: 5px; box-sizing: border-box;">
-        <div style="display: flex; overflow-y: scroll;">
-            <img src="https://safecast.org/wp-content/themes/safecast-2018/assets/img/safecast-square-color.png" alt="Safecast" width="30px" height="30px">
-            <div style="font-size: x-large; font-weight: 700; margin-left: 5px;">Safecast</div>
+    <div id="header">
+        <div style="position: absolute;">
+            <div style="display: flex;">
+                <img src="https://safecast.org/wp-content/themes/safecast-2018/assets/img/safecast-square-color.png" alt="Safecast" width="30px" height="30px">
+                <div style="font-size: x-large; font-weight: 700; margin-left: 5px;">Safecast</div>
+            </div>
+            <div id="form"> 
+                I would like to view raw 
+                <select id="pmDropdown" type="text" name="pmDropdown">
+                    <option value="pms_pm02_5">PM2.5</option>
+                    <option value="pms_pm01_0">PM1.0</option>
+                    <option value="pms_pm10_0">PM10</option>
+                </select>
+                data. <i>(Please note changing this will refresh the page.)</i> <br>
+                I am viewing raw <input type='text' id="pm"/>
+                from sensors in the area drawn using this tool (<img src="{{ url_for('static',filename='draw.PNG') }}" width="15px"/>),
+                with their latest data as of <input type='text' id="date" placeholder="MMDDYY"/>
+            </div>
         </div>
-        <form class="agg" method="POST"> 
-            I would like to see  
-            <select id="pmDropdown" type="text" name="pmDropdown">
-                <option value="pm2.5">PM2.5</option>
-                <option value="pm1">PM1.0</option>
-                <option value="pm10">PM10</option>
-            </select>
-            data,
-            in this area I can draw using by clicking on this icon (<img src="{{ url_for('static',filename='draw.PNG') }}" width="15px"/>),
-            from <input type='text' name="startDate" placeholder="MMDDYY"/> to <input type='text' name="endDate" placeholder="MMDDYY"/><br>
-            Please highlight the data which are between <input type='text' name="startDate" placeholder="ug/m3"/> and <input type='text' name="startDate" placeholder="ug/m3"/>
-            <input type="submit" value="Go">
-        </form>
+        <div id="epa"><b>I want to learn more about the factors affecting air quality!</b> <a href="https://www.epa.gov/air-emissions-inventories/2020-national-emissions-inventory-nei-documentation" target="_blank">Bring me to the relevant EPA resource.</a></div>
     </div>
-    <div id='mainmap' style="width: 60vw; height: 85vh; top: 15vh; position: absolute;"></div>
-    <div id='sidebar' style="width: 40vw; height: 85vh; top: 15vh; left: 60vw; position: absolute; padding: 5px; box-sizing: border-box;">
+    <div style="position: relative; width: 50vw; height: 85vh">
+        <div id="info"></div>
+        <div id='mainmap'></div>
+        <div id="legend"></div>
+    </div>
+    <div id='sidebar'>
     </div>
 </body>
 
 <script type="text/javascript">
-initMap = (maps) => {
-    L.Map.addInitHook(function () {
-        maps.push(this);
-    });
-
-    let mainmap = L
-        .map("mainmap")
-        .setView([34.0522, -118.2437], 12);
-
-    L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }
-    ).addTo(mainmap);
-
-    var dataLayer = new L.svg();
-    dataLayer.addTo(mainmap);
-
-    var drawnItems = new L.FeatureGroup();
-    mainmap.addLayer(drawnItems);
-
-    var drawControl = new L.Control.Draw({
-        draw: {
-            polyline: false,
-            rectangle: false,
-            circle: false,
-            marker: false,
-            circlemarker: false
-        },
-        edit: {
-            featureGroup: drawnItems
-        }
-    });
-    mainmap.addControl(drawControl);
-
-    mainmap.on("moveend", function() {update(mainmap)})
-
-    mainmap.on('draw:created', (e) => {addBound(e, map, drawnItems)});
-    mainmap.on('draw:deleted', (e) => {deleteFilter(e, map, drawnItems)});
-    return [mainmap, drawnItems];
-}
-
-loadMap = (data, map, drawnItems) => {
-    data = JSON.parse(data); 
-    console.log(data)
-    if (data[0] == 'raw') {
-        plot(true, data[1], map);
-
-    } else if (data[0] == 'filtered') {
-        let bound = data[3].map(point => [point['lat'], point['lng']]);
-        console.log(bound);
-        L.polygon(bound, {fill: false, color: '#000000'}).addTo(drawnItems);
-        plot(false, data[1], map);
-    }
-};
-
-plot = (raw, data, map) => {
-    let palette = d3.scaleLinear()
-        .domain([0, 20, 40, 60, 80, 100, 1000])
-        .range(["green", "white", "orange"])
-
-    d3.select('#mainmap')
-    .select('svg')
-    .selectAll('sensors')
-    .data(data)
-    .enter()
-    .append('circle')
-        .attr('cx', function(d) {return map.latLngToLayerPoint([d['loc_lat'], d['loc_lon']]).x})
-        .attr('cy', function(d) {return map.latLngToLayerPoint([d['loc_lat'], d['loc_lon']]).y})
-        .attr('r', 20)
-        .attr('fill-opacity', 0.8)
-        .attr('class', 'sensors')
-        .attr('fill', function(d) {return palette(d['pms_pm02_5'])})
-}
-
-update = (map) => {
-    d3.selectAll(".sensors")
-        .attr('cx', function(d) {return map.latLngToLayerPoint([d['loc_lat'], d['loc_lon']]).x})
-        .attr('cy', function(d) {return map.latLngToLayerPoint([d['loc_lat'], d['loc_lon']]).y})
-}
-
-addBound = (e, map, drawnItems) => {
-    drawnItems.addLayer(e.layer)
-    $.ajax({
-        url: "/data",
-        type: "post",
-        data: JSON.stringify(e.layer.getLatLngs()),
-        contentType: 'application/json',
-        success: function(data) {
-            d3.select('#mainmap').select('svg').selectAll('circle').remove();
-            drawnItems.clearLayers();
-            loadMap(data, map, drawnItems);
-            d3.select('#sidebar').select('svg').remove();
-            plotTime(data);
-        },
-        error: function(xhr) {
-        }
-    });
-}
-
-deleteFilter = (e, map, drawnItems) => {
-    $.ajax({
-        url: "/data",
-        type: "get",
-        success: function(data) {
-            drawnItems.clearLayers();
-            d3.select('#mainmap').select('svg').selectAll('circle').remove();
-            loadMap(data, map, drawnItems);
-            d3.select('#sidebar').select('svg').remove();
-            plotTime(data);
-        },
-        error: function(xhr) {
-        }
-    })
-}
-
-plotTime = (data) => {
-    data = JSON.parse(data);
-    data = data[2];
-
-    var margin = {top: 0, right: 40, bottom: 40, left: 30};
-    var width = document.getElementById('sidebar').offsetWidth - margin.left - margin.right;
-    var height = document.getElementById('sidebar').offsetHeight - margin.top - margin.bottom;
-
-    var parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%SZ");
-    var color = d3.scaleOrdinal(d3.schemeTableau10).domain(data.map(function(c) { return c['device']; }));
-    
-    data = data.map(function (d) { d['when_captured'] = parseTime(d['when_captured']); return d;})
-
-    var g = d3.select('#sidebar')
-        .append("svg")
-        .attr("width", (width + margin.left + margin.right))
-        .attr("height", (height + margin.top + margin.bottom))
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    var xRange = d3.scaleTime()
-        .rangeRound([0, width])
-        .domain(d3.extent(data.map(function(d) { return d['when_captured']; })));
-
-    var yRange = d3.scaleLinear()
-        .range([height, 0])
-        .domain(d3.extent(data.map(function(d) { return d['pms_pm02_5']; })));
-
-    var line = d3.line()
-        .x(function(d) { return xRange(+d['when_captured']);  })
-        .y(function(d) { return yRange(+d['pms_pm02_5']);  })
-
-    data = data.reduce((r, { device: device, ...object }) => {
-        var temp = r.find(o => o.device === device);
-        if (!temp) r.push(temp = { device, values: [] });
-        temp.values.push(object);
-        return r;
-    }, []);
-
-    g.append("g")
-        .attr("class", "axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(d3.axisBottom(xRange).tickFormat(d3.timeFormat("%H:%M")))
-        .selectAll('text')
-        .style("text-anchor", "end")
-        .attr("dx", "-.1em")
-        //.attr("transform", "rotate(-65)");
-
-    g.append("g")
-        .attr("class", "axis")
-        .call(d3.axisLeft(yRange))
-        .append("text")
-        .attr("x",2)
-        .attr("y", 6)
-        .attr("dy", "0.71em")
-        .attr("fill", "#000")
-        .attr("text-anchor", "start");
-
-    var chart = g.selectAll(".chart")
-        .data(data)
-        .enter()
-        .append("path")
-        .style("fill", "none")
-        .attr("class", "line")
-        .attr("d", function(d){ return line(d['values']) })
-        .style("stroke", function(d) { return color(d['device']); });
-   
-}
-
-// try to refactor everything above into a separate file >:(
 var maps = [];
 var [map, drawnItems] = initMap(maps);
-loadMap('{{ data | tojson }}', map, drawnItems);
-plotTime('{{ data | tojson }}')
+plotAll(map, drawnItems);
+document.getElementById("pmDropdown").addEventListener("change", function() {plotAll(map, drawnItems)});
 
+function plotAll(map, drawnItems) {
+    let pmMap = {'pms_pm02_5': 'PM2.5', 'pms_pm01_0': 'PM1.0', 'pms_pm10_0': 'PM10'}
+    let pm = document.getElementById("pmDropdown").value;
+    document.getElementById("pm").value = pmMap[pm];
+    d3.select('#mainmap').select('svg').selectAll('circle').remove();
+    d3.select('#sidebar').select('svg').remove();
+    drawnItems.clearLayers();
+    loadMap('{{ data | tojson }}', map, pm, drawnItems);
+    plotTime('{{ data | tojson }}', map, pm);
+}
 </script>
 </html>

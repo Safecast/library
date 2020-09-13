@@ -35,5 +35,4 @@ class wrangle:
         datasf['within'] = [True if Point(point['loc_lon'], point['loc_lat']).within(bound) else False for point in data]
         filtered = datasf[datasf['within'] == True].to_json(orient='records')
         filtered = json.loads(filtered)
-
         return filtered
