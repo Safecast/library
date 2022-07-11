@@ -16,20 +16,20 @@ jobs:
         uses: actions/checkout@v2
       - name: Set container details
         run: |
-          echo "::set-env name=REGISTRY::docker.pkg.github.com"
+          echo "REGISTRY=docker.pkg.github.com" >> $GITHUB_ENV
           REPOSITORY_BASE=$(echo "${{ github.repository }}" | perl -ne 'print lc')
-          echo "::set-env name=REPOSITORY_BASE::${REPOSITORY_BASE}"
-          echo "::set-env name=TAG::sha-$(git rev-parse --short=7 HEAD)"
+          echo "REPOSITORY_BASE=${REPOSITORY_BASE}" >> $GITHUB_ENV
+          echo "TAG=sha-$(git rev-parse --short=7 HEAD)" >> $GITHUB_ENV
       - name: Build containers
         run: |
-          docker build -t "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}" .
+          docker build -t "${{ env.REGISTRY }}/${{ env.REPOSITORY_BASE }}/app:${{ env.TAG }}" .
       - name: Push containers (except on PRs from forks)
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login "${REGISTRY}" -u ${{ github.actor }} --password-stdin
-          docker push "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}"
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login "${{ env.REGISTRY }}" -u ${{ github.actor }} --password-stdin
+          docker push "${{ env.REGISTRY }}/${{ env.REPOSITORY_BASE }}/app:${{ env.TAG }}"
       - name: Push latest containers (only on main)
         if: ${{ github.event_name == 'push' && github.event.ref == 'refs/heads/master' }}
         run: |
-          docker tag "${REGISTRY}/${REPOSITORY_BASE}/app:${TAG}" "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
-          docker push "${REGISTRY}/${REPOSITORY_BASE}/app:latest"
+          docker tag "${{ env.REGISTRY }}/${{ env.REPOSITORY_BASE }}/app:${{ env.TAG }}" "${{ env.REGISTRY }}/${{ env.REPOSITORY_BASE }}/app:latest"
+          docker push "${{ env.REGISTRY }}/${{ env.REPOSITORY_BASE }}/app:latest"
